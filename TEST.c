@@ -1,90 +1,139 @@
+/*Base register address header file*/
 #include "stm32l1xx.h"
-#include "stm32l1xx_ll_system.h"
+
+/*Library related header files*/
+#include "stm32l1xx_ll_gpio.h"
+#include "stm32l1xx_ll_pwr.h"
+#include "stm32l1xx_ll_rcc.h"
 #include "stm32l1xx_ll_bus.h"
 #include "stm32l1xx_ll_utils.h"
-#include "stm32l1xx_ll_pwr.h"
-#include "stm32l1xx_ll_gpio.h"
-#include "stm32l1xx_ll_rcc.h"
+#include "stm32l1xx_ll_system.h"
 
+//Show LCD
 #include "stm32l1xx_ll_lcd.h"
 #include "stm32l152_glass_lcd.h"
-#include "stdio.h"
 
-void SystemClock_Config();
-char show_lcd[7];  //Declare LCE
-int state_lcd;     //state LCE on/off
+//for random
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+void SystemClock_Config(void); 
+uint8_t CheckWin(uint8_t p1, uint8_t p2); // Function Check win
+
+uint8_t usr_button;
+uint8_t state_led; 
+
+
+char disp_str[9];
+char disp_WIN[]  = " *WIN*";
+char disp_LOSE[] = " LOSE";
+char disp_DRAW[] = " DRAW";
+
+uint8_t  player1_rand = 0; 
+uint8_t  player2;
 
 int main()
 {
-	uint8_t usr_button;
+	int i = 0; //Declare i for random
+	uint8_t usr_button;  //Declare
 	LL_GPIO_InitTypeDef GPIO_InitStruct; //Declare struct for GPIO config
 	SystemClock_Config();
-	
 	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA); //Enable GPIOA clock
 	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB); //Enable GPIOB clock
 	
-	//////////////INPUT/////////////////////
-	
-	GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
+	/////OUTPUT////
+	GPIO_InitStruct.Mode  = LL_GPIO_MODE_OUTPUT;
 	GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-	GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-	GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
-	
-  GPIO_InitStruct.Pin = LL_GPIO_PIN_0;	
-	LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-	
-	////////////OUTPUT////////////////
-	
-	GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-	GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-	GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-	GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+	GPIO_InitStruct.Pull  = LL_GPIO_PULL_NO;
+	GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;	
 	
 	GPIO_InitStruct.Pin = LL_GPIO_PIN_6;
 	LL_GPIO_Init(GPIOB, &GPIO_InitStruct);//write configuration to GPIOB registor
 	GPIO_InitStruct.Pin = LL_GPIO_PIN_7;
 	LL_GPIO_Init(GPIOB, &GPIO_InitStruct);//configuration to GPIOB for pin 7
 	
-
-	///////////***LCD***/////////////
+	////////INPUT/////////
+	GPIO_InitStruct.Mode  = LL_GPIO_MODE_INPUT;
+	GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+	GPIO_InitStruct.Pull  = LL_GPIO_PULL_NO;
+	GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+	
+	GPIO_InitStruct.Pin = LL_GPIO_PIN_0; // USER button
+	LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	GPIO_InitStruct.Pin = LL_GPIO_PIN_4; // PA4 button
+	LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	GPIO_InitStruct.Pin = LL_GPIO_PIN_5; // PA5 button
+ 	LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	
+	////////LCD/////////
 	SystemClock_Config(); //Max-performance configure
-  LCD_GLASS_Init();	//LCD low-level init
-		
+    LCD_GLASS_Init();	    //LCD low-level init
+	
+	/*START GAME*/
+	/////////////////////////////////////////////////////////
+	sprintf(disp_str, " Start");
+	LCD_GLASS_DisplayString((uint8_t*)disp_str);
 	
 	while(1)
-	{
-		state_lcd  = LL_GPIO_IsOutputPinSet(GPIOB, LL_GPIO_PIN_6);
+	{		
+		srand(i++);
+		state_led =  LL_GPIO_IsOutputPinSet(GPIOB, LL_GPIO_PIN_6);
 		usr_button = LL_GPIO_IsInputPinSet (GPIOA,LL_GPIO_PIN_0);
-		
+								
 		if(usr_button == 1)
 		 {
-				LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_6);
-		    LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_7);
+			  LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_6);
+		      LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_7);
 			 
-			  if(state_lcd == 0)
-				{
-					sprintf(show_lcd, " Start");
-		            LCD_GLASS_DisplayString((uint8_t*)show_lcd);
-					      LCD_GLASS_BlinkConfig(LCD_BLINKMODE_ALLSEG_ALLCOM, LCD_BLINKFREQUENCY_DIV512);
-								LL_mDelay(1800);
-						    LCD_GLASS_BlinkConfig(LCD_BLINKMODE_OFF, LCD_BLINKFREQUENCY_DIV512);
+			  if(state_led == 0) 
+				{	
+					sprintf(disp_str, " PLAYER 1 ");
+		            LCD_GLASS_ScrollSentence((uint8_t*) disp_str , 2 , 300);
 					
-					sprintf(show_lcd, "  PLAYER 2");
-		            LCD_GLASS_ScrollSentence((uint8_t*) show_lcd , 2 , 250); 
-					 
+				}		
+				while(usr_button != 0){		
+								 player1_rand = rand() % 3 ; // random value is 0 is scissor , 1 is rock , 2 is paper
+	               usr_button = LL_GPIO_IsInputPinSet(GPIOA,LL_GPIO_PIN_0);			    
 				}
-				else
+				sprintf(disp_str, "UR TURN");
+				LCD_GLASS_DisplayString((uint8_t*)disp_str);	
+		 }
+		 
+		 // 01 is scissor , 10 is rock , 00 is paper
+		 if( LL_GPIO_IsInputPinSet(GPIOA,LL_GPIO_PIN_4) == 0 || LL_GPIO_IsInputPinSet(GPIOA,LL_GPIO_PIN_5) == 0 )
+		 {
+			    if (LL_GPIO_IsInputPinSet(GPIOA,LL_GPIO_PIN_4) == 0 && LL_GPIO_IsInputPinSet(GPIOA,LL_GPIO_PIN_5) == 1)
+					 player2 = 0; //scissor
+				
+				else if(LL_GPIO_IsInputPinSet(GPIOA,LL_GPIO_PIN_4) == 1 && LL_GPIO_IsInputPinSet(GPIOA,LL_GPIO_PIN_5) == 0)
+					 player2 = 1; //rock
+					
+				else if(LL_GPIO_IsInputPinSet(GPIOA,LL_GPIO_PIN_4) == 0 && LL_GPIO_IsInputPinSet(GPIOA,LL_GPIO_PIN_5) == 0)
+					 player2 = 2; //paper
+				
+				
+				// 0 is scissor , 1 is rock , 2 is paper
+	      
+				if(CheckWin(player1_rand,player2) == 0)     //Check DRAW
+				{	
+		            LCD_GLASS_Clear();
+					LCD_GLASS_DisplayString((uint8_t*)disp_DRAW);						
+				}
+				else if (CheckWin(player1_rand,player2) == 1) //Check  LOSE
 				{
-					sprintf(show_lcd, "LD*off");
-		            LCD_GLASS_DisplayString((uint8_t*) show_lcd );
-				}
-				while(usr_button != 0)	//if button is hold so loop 	
-	               usr_button = LL_GPIO_IsInputPinSet(GPIOA,LL_GPIO_PIN_0);//loop here		
-							   LCD_GLASS_DisplayBar(LCD_BAR_0);
-		 }		
-	}	       
-}
+		            LCD_GLASS_Clear();
+					LCD_GLASS_DisplayString((uint8_t*)disp_LOSE);					
+				}					
+				else if(CheckWin(player1_rand,player2) == 2)   //Check WIN
+				{			
+		            LCD_GLASS_Clear();
+					LCD_GLASS_DisplayString((uint8_t*)disp_WIN);					
+				}					
+		 } 		 	 	 
+	}
 
+}
 void SystemClock_Config(void)
 {
   /* Enable ACC64 access and set FLASH latency */ 
@@ -138,3 +187,40 @@ void SystemClock_Config(void)
   /* Update CMSIS variable (which can be updated also through SystemCoreClockUpdate function) */
   LL_SetSystemCoreClock(32000000);
 }
+uint8_t CheckWin(uint8_t p1, uint8_t p2)
+{
+	uint8_t result;
+	// 0 is scissor , 1 is rock , 2 is paper
+	// 0 is draw , 1 is lose , 2 is win 
+	
+	if(p2 == 0)//player 2 is scissor
+	{
+		if(p1 == 0) 
+			result = 0;
+		else if(p1 == 1)
+			result = 1;
+		else if(p1 == 2)
+			result = 2;
+	}
+	if(p2 == 1) //player 2 is rock
+	{
+		if(p1 == 0) 
+			result = 2; 
+		else if(p1 == 1)
+			result = 0;
+		else if(p1 == 2)
+			result = 1;
+	}
+	if(p2 == 2) //player 2 is paper
+	{
+		if(p1 == 0)
+			result = 1;
+		else if(p1 == 1)
+			result = 2;
+		else if(p1 == 2)
+			result = 0;
+	}
+	
+	return(result);
+}
+
